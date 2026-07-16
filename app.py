@@ -42,7 +42,8 @@ def download_youtube(url, format_type, quality):
     from pytubefix.cli import on_progress
 
     yt = YouTube(url, on_progress_callback=on_progress,
-                 use_oauth=False, allow_oauth_cache=False)
+                 use_oauth=False, allow_oauth_cache=False,
+                 use_po_token=True)
 
     if format_type == 'mp3':
         stream = yt.streams.filter(only_audio=True).order_by('bitrate').desc().first()
