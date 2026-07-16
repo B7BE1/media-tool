@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Media Tool — واجهة معالجة الوسائط</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#05070c;
+    --bg-1:#0a0e17;
+    --card-bg: rgba(18, 22, 34, 0.55);
+    --card-border: rgba(255,255,255,0.08);
+    --cyan: #4ee6ff;
+    --cyan-2: #22c1ff;
+    --blue-deep: #1148d6;
+    --text-hi: #eef3fb;
+    --text-mid: #9aa6bd;
+    --text-low: #5b6478;
+    --danger: #ff5d7a;
+    --radius-card: 24px;
+    --radius-field: 16px;
+    --font-display: 'Poppins', 'Inter', sans-serif;
+    --font-body: 'Inter', sans-serif;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+
+  html,body{ height:100%; }
+
+  body{
+    font-family: var(--font-body);
+    background:
+      radial-gradient(700px 500px at 12% 8%, rgba(78,230,255,0.10), transparent 60%),
+      radial-gradient(800px 600px at 90% 85%, rgba(17,72,214,0.18), transparent 60%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-0));
+    min-height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 24px;
+    color: var(--text-hi);
+    overflow-x:hidden;
+  }
+
+  /* ambient floating glow orbs */
+  .orb{
+    position:fixed;
+    border-radius:50%;
+    filter: blur(80px);
+    opacity:0.35;
+    pointer-events:none;
+    z-index:0;
+  }
+  .orb-1{ width:380px; height:380px; background:var(--cyan); top:-120px; left:-100px; animation: float1 14s ease-in-out infinite; }
+  .orb-2{ width:420px; height:420px; background:var(--blue-deep); bottom:-160px; right:-120px; animation: float2 16s ease-in-out infinite; }
+
+  @keyframes float1{
+    0%,100%{ transform: translate(0,0); }
+    50%{ transform: translate(30px, 40px); }
+  }
+  @keyframes float2{
+    0%,100%{ transform: translate(0,0); }
+    50%{ transform: translate(-40px, -30px); }
+  }
+
+  .card{
+    position:relative;
+    z-index:1;
+    width:100%;
+    max-width: 480px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-card);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    box-shadow:
+      0 8px 32px rgba(0,0,0,0.45),
+      inset 0 1px 0 rgba(255,255,255,0.04);
+    padding: 40px 32px;
+    animation: cardIn 0.6s cubic-bezier(.16,1,.3,1);
+  }
+
+  @keyframes cardIn{
+    from{ opacity:0; transform: translateY(18px) scale(0.98); }
+    to{ opacity:1; transform: translateY(0) scale(1); }
+  }
+
+  .eyebrow{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-size:12px;
+    letter-spacing:0.06em;
+    color: var(--cyan);
+    background: rgba(78,230,255,0.08);
+    border: 1px solid rgba(78,230,255,0.25);
+    padding: 6px 12px;
+    border-radius: 999px;
+    margin-bottom:20px;
+    font-family: var(--font-body);
+    font-weight:600;
+  }
+  .eyebrow .dot{
+    width:6px; height:6px; border-radius:50%;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{ opacity:1; }
+    50%{ opacity:0.35; }
+  }
+
+  h1{
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight:700;
+    line-height:1.3;
+    margin-bottom:8px;
+  }
+  .subtitle{
+    color: var(--text-mid);
+    font-size: 14px;
+    margin-bottom: 28px;
+    line-height:1.6;
+  }
+
+  .field-group{
+    margin-bottom:16px;
+  }
+  label{
+    display:block;
+    font-size:13px;
+    color: var(--text-mid);
+    margin-bottom:8px;
+    font-weight:500;
+  }
+
+  .input-wrap{
+    position:relative;
+    border-radius: var(--radius-field);
+    background: rgba(8,10,16,0.6);
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .input-wrap.focused{
+    border-color: rgba(78,230,255,0.6);
+    box-shadow: 0 0 0 4px rgba(78,230,255,0.08), 0 0 18px rgba(78,230,255,0.25);
+  }
+  .input-wrap.valid{
+    border-color: rgba(78,230,255,0.45);
+  }
+
+  #url-input{
+    width:100%;
+    background:transparent;
+    border:none;
+    outline:none;
+    padding: 15px 46px 15px 16px;
+    color: var(--text-hi);
+    font-size:14.5px;
+    font-family: var(--font-body);
+  }
+  #url-input::placeholder{ color: var(--text-low); }
+
+  .input-icon{
+    position:absolute;
+    left:16px;
+    top:50%;
+    transform: translateY(-50%);
+    color: var(--text-low);
+    display:flex;
+    transition: color 0.25s ease;
+  }
+  .input-wrap.focused .input-icon,
+  .input-wrap.valid .input-icon{ color: var(--cyan); }
+
+  .format-row{
+    display:flex;
+    gap:12px;
+    margin-bottom:24px;
+  }
+  .format-option{
+    flex:1;
+    position:relative;
+  }
+  .format-option input{
+    position:absolute;
+    opacity:0;
+    inset:0;
+    cursor:pointer;
+    margin:0;
+  }
+  .format-card{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    padding: 13px 10px;
+    border-radius: var(--radius-field);
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(8,10,16,0.5);
+    color: var(--text-mid);
+    font-size:13.5px;
+    font-weight:600;
+    transition: all 0.2s ease;
+    pointer-events:none;
+  }
+  .format-option input:checked + .format-card{
+    border-color: rgba(78,230,255,0.6);
+    color: var(--text-hi);
+    background: linear-gradient(135deg, rgba(78,230,255,0.12), rgba(17,72,214,0.12));
+    box-shadow: 0 0 16px rgba(78,230,255,0.15);
+  }
+  .format-option input:focus-visible + .format-card{
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+
+  .quality-wrap{
+    position:relative;
+  }
+  .quality-wrap.disabled{
+    opacity:0.4;
+    pointer-events:none;
+  }
+  select#quality-select{
+    width:100%;
+    appearance:none;
+    -webkit-appearance:none;
+    background: rgba(8,10,16,0.6);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-field);
+    color: var(--text-hi);
+    font-family: var(--font-body);
+    font-size:14px;
+    font-weight:500;
+    padding: 14px 44px 14px 16px;
+    cursor:pointer;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  select#quality-select:hover{
+    border-color: rgba(78,230,255,0.35);
+  }
+  select#quality-select:focus{
+    outline:none;
+    border-color: rgba(78,230,255,0.6);
+    box-shadow: 0 0 0 4px rgba(78,230,255,0.08), 0 0 18px rgba(78,230,255,0.25);
+  }
+  select#quality-select option{
+    background: #0c101a;
+    color: var(--text-hi);
+  }
+  .quality-wrap .select-icon{
+    position:absolute;
+    left:16px;
+    top:50%;
+    transform: translateY(-50%);
+    color: var(--text-low);
+    pointer-events:none;
+    display:flex;
+    transition: color 0.2s ease;
+  }
+  select#quality-select:focus ~ .select-icon{
+    color: var(--cyan);
+  }
+  .quality-badge{
+    display:inline-block;
+    font-size:10.5px;
+    font-weight:700;
+    letter-spacing:0.04em;
+    padding:2px 7px;
+    border-radius:999px;
+    margin-right:6px;
+  }
+  .badge-hd{ background: rgba(78,230,255,0.15); color: var(--cyan); }
+  .badge-sd{ background: rgba(154,166,189,0.15); color: var(--text-mid); }
+
+  #download-btn{
+    width:100%;
+    padding: 16px;
+    border:none;
+    border-radius: var(--radius-field);
+    background: linear-gradient(135deg, var(--cyan) 0%, var(--cyan-2) 45%, var(--blue-deep) 100%);
+    background-size: 160% 160%;
+    color:#03131c;
+    font-family: var(--font-display);
+    font-weight:700;
+    font-size:15.5px;
+    cursor:pointer;
+    position:relative;
+    overflow:hidden;
+    transition: transform 0.15s ease, box-shadow 0.3s ease, background-position 0.4s ease;
+    box-shadow: 0 6px 20px rgba(34,193,255,0.25);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+  }
+  #download-btn:hover:not(:disabled){
+    background-position: 100% 50%;
+    box-shadow: 0 8px 28px rgba(34,193,255,0.4), 0 0 30px rgba(78,230,255,0.25);
+    transform: translateY(-1px);
+  }
+  #download-btn:active:not(:disabled){
+    transform: translateY(0px) scale(0.99);
+  }
+  #download-btn:disabled{
+    cursor:not-allowed;
+    opacity:0.85;
+  }
+
+  .spinner{
+    width:18px; height:18px;
+    border-radius:50%;
+    border: 2.5px solid rgba(3,19,28,0.25);
+    border-top-color: #03131c;
+    animation: spin 0.7s linear infinite;
+    display:none;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  .btn-label{ display:inline-flex; }
+
+  /* progress */
+  .progress-wrap{
+    margin-top:20px;
+    display:none;
+  }
+  .progress-wrap.show{ display:block; animation: fadeIn 0.35s ease; }
+  @keyframes fadeIn{ from{ opacity:0; transform:translateY(6px);} to{ opacity:1; transform:translateY(0);} }
+
+  .progress-meta{
+    display:flex;
+    justify-content:space-between;
+    font-size:12.5px;
+    color: var(--text-mid);
+    margin-bottom:8px;
+  }
+  .progress-track{
+    width:100%;
+    height:8px;
+    border-radius:999px;
+    background: rgba(255,255,255,0.06);
+    overflow:hidden;
+    position:relative;
+  }
+  .progress-fill{
+    height:100%;
+    width:0%;
+    border-radius:999px;
+    background: linear-gradient(90deg, var(--cyan), var(--blue-deep));
+    box-shadow: 0 0 12px rgba(78,230,255,0.5);
+    transition: width 0.3s ease;
+  }
+
+  .result-box{
+    margin-top:18px;
+    display:none;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding: 14px 16px;
+    border-radius: var(--radius-field);
+    background: rgba(78,230,255,0.06);
+    border: 1px solid rgba(78,230,255,0.25);
+    animation: fadeIn 0.4s ease;
+  }
+  .result-box.show{ display:flex; }
+  .result-text{
+    font-size:13.5px;
+    color: var(--text-hi);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .result-link{
+    flex-shrink:0;
+    color: var(--bg-0);
+    background: var(--cyan);
+    font-size:13px;
+    font-weight:700;
+    padding: 8px 14px;
+    border-radius: 999px;
+    text-decoration:none;
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+  }
+  .result-link:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 0 16px rgba(78,230,255,0.5);
+  }
+
+  .error-box{
+    margin-top:16px;
+    display:none;
+    font-size:13px;
+    color: var(--danger);
+    background: rgba(255,93,122,0.08);
+    border: 1px solid rgba(255,93,122,0.25);
+    padding: 12px 14px;
+    border-radius: var(--radius-field);
+  }
+  .error-box.show{ display:block; animation: fadeIn 0.3s ease; }
+
+  footer{
+    margin-top:26px;
+    text-align:center;
+    font-size:12px;
+    color: var(--text-low);
+  }
+
+  @media (max-width:480px){
+    .card{ padding: 30px 22px; border-radius:20px; }
+    h1{ font-size:22px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<div class="card">
+  <span class="eyebrow"><span class="dot"></span> جاهز للمعالجة</span>
+  <h1>حوّل الوسائط بضغطة واحدة</h1>
+  <p class="subtitle">ألصق الرابط، اختر الصيغة، واحصل على ملفك مباشرة. بدون تعقيد وبدون انتظار طويل.</p>
+
+  <div class="field-group">
+    <label for="url-input">رابط الملف</label>
+    <div class="input-wrap" id="input-wrap">
+      <span class="input-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+      </span>
+      <input type="text" id="url-input" placeholder="https://example.com/media/..." autocomplete="off">
+    </div>
+  </div>
+
+  <div class="field-group">
+    <label>الصيغة</label>
+    <div class="format-row">
+      <div class="format-option">
+        <input type="radio" name="format" id="fmt-mp4" value="mp4" checked>
+        <label for="fmt-mp4" class="format-card">🎬 MP4 — فيديو</label>
+      </div>
+      <div class="format-option">
+        <input type="radio" name="format" id="fmt-mp3" value="mp3">
+        <label for="fmt-mp3" class="format-card">🎵 MP3 — صوت فقط</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="field-group" id="quality-group">
+    <label for="quality-select">الجودة</label>
+    <div class="quality-wrap" id="quality-wrap">
+      <select id="quality-select">
+        <option value="2160">4K — 2160p (Ultra HD)</option>
+        <option value="1440">2K — 1440p (Quad HD)</option>
+        <option value="1080" selected>Full HD — 1080p</option>
+        <option value="720">HD — 720p</option>
+        <option value="480">SD — 480p</option>
+        <option value="360">360p</option>
+        <option value="240">240p</option>
+      </select>
+      <span class="select-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </span>
+    </div>
+  </div>
+
+  <button id="download-btn" type="button">
+    <span class="spinner" id="spinner"></span>
+    <span class="btn-label" id="btn-label">ابدأ المعالجة</span>
+  </button>
+
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-meta">
+      <span id="progress-label">جاري المعالجة…</span>
+      <span id="progress-percent">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+  </div>
+
+  <div class="result-box" id="result-box">
+    <span class="result-text" id="result-text">الملف جاهز للتحميل</span>
+    <a href="#" class="result-link" id="result-link" download>تحميل</a>
+  </div>
+
+  <div class="error-box" id="error-box"></div>
+
+  <footer>معالجة آمنة وسريعة — بدون إعلانات</footer>
+</div>
+
+<script>
+(function(){
+  const urlInput   = document.getElementById('url-input');
+  const inputWrap  = document.getElementById('input-wrap');
+  const btn        = document.getElementById('download-btn');
+  const btnLabel   = document.getElementById('btn-label');
+  const spinner    = document.getElementById('spinner');
+  const progressWrap    = document.getElementById('progress-wrap');
+  const progressFill    = document.getElementById('progress-fill');
+  const progressPercent = document.getElementById('progress-percent');
+  const progressLabel   = document.getElementById('progress-label');
+  const resultBox  = document.getElementById('result-box');
+  const resultText = document.getElementById('result-text');
+  const resultLink = document.getElementById('result-link');
+  const errorBox   = document.getElementById('error-box');
+  const qualitySelect = document.getElementById('quality-select');
+  const qualityWrap   = document.getElementById('quality-wrap');
+
+  let isProcessing = false;
+
+  // MP3 has no video quality — grey out the selector when audio-only is picked
+  function syncQualityAvailability(){
+    const format = document.querySelector('input[name="format"]:checked').value;
+    qualityWrap.classList.toggle('disabled', format === 'mp3');
+  }
+  document.querySelectorAll('input[name="format"]').forEach(radio => {
+    radio.addEventListener('change', syncQualityAvailability);
+  });
+  syncQualityAvailability();
+
+  // basic URL auto-detect / validation feedback
+  const urlPattern = /^(https?:\/\/)[^\s]+\.[^\s]{2,}/i;
+
+  urlInput.addEventListener('focus', () => inputWrap.classList.add('focused'));
+  urlInput.addEventListener('blur', () => inputWrap.classList.remove('focused'));
+  urlInput.addEventListener('input', () => {
+    const isValid = urlPattern.test(urlInput.value.trim());
+    inputWrap.classList.toggle('valid', isValid);
+  });
+
+  function resetPanels(){
+    progressWrap.classList.remove('show');
+    resultBox.classList.remove('show');
+    errorBox.classList.remove('show');
+    progressFill.style.width = '0%';
+    progressPercent.textContent = '0%';
+  }
+
+  function setLoading(loading){
+    isProcessing = loading;
+    btn.disabled = loading;
+    spinner.style.display = loading ? 'inline-block' : 'none';
+    btnLabel.textContent = loading ? 'جاري المعالجة…' : 'ابدأ المعالجة';
+  }
+
+  function showError(message){
+    errorBox.textContent = message;
+    errorBox.classList.add('show');
+  }
+
+  // simulate progress while waiting on the real request (purely visual)
+  function startFakeProgress(){
+    progressWrap.classList.add('show');
+    let pct = 0;
+    const interval = setInterval(() => {
+      if (!isProcessing) { clearInterval(interval); return; }
+      pct = Math.min(pct + Math.random() * 12, 92); // holds under 100 until real completion
+      progressFill.style.width = pct + '%';
+      progressPercent.textContent = Math.floor(pct) + '%';
+    }, 350);
+    return interval;
+  }
+
+  btn.addEventListener('click', async () => {
+    if (isProcessing) return;
+
+    const link = urlInput.value.trim();
+    const format = document.querySelector('input[name="format"]:checked').value;
+    const quality = format === 'mp4' ? qualitySelect.value : null;
+
+    resetPanels();
+
+    if (!urlPattern.test(link)) {
+      showError('يرجى إدخال رابط صحيح يبدأ بـ http:// أو https://');
+      return;
+    }
+
+    setLoading(true);
+    const progressInterval = startFakeProgress();
+
+    try {
+      const response = await fetch('/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: link, format: format, quality: quality })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || 'حدث خطأ أثناء المعالجة. حاول مرة أخرى.');
+      }
+
+      const data = await response.json();
+
+      // finish the progress bar to 100%
+      clearInterval(progressInterval);
+      progressFill.style.width = '100%';
+      progressPercent.textContent = '100%';
+      progressLabel.textContent = 'اكتملت المعالجة';
+
+      // reveal the download link returned by the backend
+      resultText.textContent = data.filename || 'الملف جاهز';
+      resultLink.href = data.download_url || '#';
+      resultBox.classList.add('show');
+
+    } catch (err) {
+      clearInterval(progressInterval);
+      progressWrap.classList.remove('show');
+      showError(err.message || 'تعذر الاتصال بالخادم.');
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // submit on Enter key
+  urlInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') btn.click();
+  });
+})();
+</script>
+
+</body>
+</html>
