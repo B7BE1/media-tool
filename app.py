@@ -158,6 +158,7 @@ def _ytdlp_youtube(url, format_type, quality, player_client='ios'):
 
     ydl_opts = {
         'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
+        'merge_output_format': 'mp4',
         'quiet': True,
         'no_warnings': True,
         'extractor_args': {'youtube': {'player_client': [player_client]}},
@@ -178,7 +179,7 @@ def _ytdlp_youtube(url, format_type, quality, player_client='ios'):
             'preferredquality': '192',
         }]
     else:
-        ydl_opts['format'] = 'bestvideo+bestaudio/best'
+        ydl_opts['format'] = 'best'
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
