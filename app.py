@@ -47,8 +47,8 @@ def download_youtube(url, format_type, quality):
     except Exception as e1:
         try:
             return _invidious_youtube(url, format_type, quality)
-        except Exception as e2:
-            raise Exception(str(e1))
+        except Exception:
+            raise e1
 
 
 INVIDIOUS_INSTANCES = [
@@ -219,6 +219,16 @@ def upload_cookies():
 
     file.save(COOKIES_FILE)
     return jsonify({"status": "success", "message": "Cookies uploaded"})
+
+@app.route('/status')
+def status():
+    cookie_exists = os.path.exists(COOKIES_FILE)
+    cookie_size = os.path.getsize(COOKIES_FILE) if cookie_exists else 0
+    return jsonify({
+        "cookies": cookie_exists,
+        "cookies_size": cookie_size,
+        "cookies_path": COOKIES_FILE,
+    })
 
 @app.route('/downloads/<filename>')
 def download_file(filename):
