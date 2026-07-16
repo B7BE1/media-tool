@@ -52,7 +52,14 @@ def process():
         })
 
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 400
+        msg = str(e)
+        if 'bot' in msg.lower() or 'sign in' in msg.lower():
+            msg = ('YouTube requires browser verification. Please:\n'
+                   '1. Install "Get cookies.txt LOCALLY" extension\n'
+                   '2. Go to youtube.com and export cookies\n'
+                   '3. Upload cookies.txt on the site\n'
+                   '4. Try downloading again')
+        return jsonify({"status": "error", "message": msg}), 400
 
 
 def download_youtube(url, format_type, quality):
@@ -152,7 +159,6 @@ def _ytdlp_youtube(url, format_type, quality):
         'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
         'quiet': True,
         'no_warnings': True,
-        'extractor_args': {'youtube': {'player_client': ['ios']}},
     }
 
     cookie_file = get_cookies_file()
