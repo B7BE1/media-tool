@@ -152,6 +152,7 @@ def _ytdlp_youtube(url, format_type, quality):
         'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
         'quiet': True,
         'no_warnings': True,
+        'extractor_args': {'youtube': {'player_client': ['ios']}},
     }
 
     cookie_file = get_cookies_file()
