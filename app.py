@@ -63,7 +63,46 @@ def process():
 
 
 def download_youtube(url, format_type, quality):
-    return _ytdlp_youtube(url, format_type, quality)
+    # Try pytubefix first - handles YouTube better
+    try:
+        return _pytubefix_youtube(url, format_type, quality)
+    except Exception as e1:
+        try:
+            return _ytdlp_youtube(url, format_type, quality)
+        except Exception:
+            raise e1
+
+
+def _pytubefix_youtube(url, format_type, quality):
+    from pytubefix import YouTube
+
+    yt = YouTube(url, use_oauth=False, allow_oauth_cache=False)
+
+    if format_type == 'mp3':
+        stream = yt.streams.filter(only_audio=True).order_by('bitrate').desc().first()
+    else:
+        stream = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
+
+    if not stream:
+        raise Exception('No stream available for this video')
+
+    safe_title = re.sub(r'[<>:\"\/\\\\|?*]', '', yt.title)[:100]
+    ext = 'mp3' if format_type == 'mp3' else 'mp4'
+    out_path = os.path.join(DOWNLOAD_FOLDER, f'{safe_title}.{ext}')
+
+    stream.download(output_path=DOWNLOAD_FOLDER, filename=f'{safe_title}.{ext}')
+
+    if format_type == 'mp3':
+        import subprocess
+        src = out_path.replace('.mp3', '.mp4')
+        if os.path.exists(src) and src != out_path:
+            subprocess.run([
+                'ffmpeg', '-y', '-i', src, '-vn',
+                '-acodec', 'libmp3lame', '-b:a', '192k', out_path
+            ], capture_output=True)
+            os.remove(src)
+
+    return out_path
 
 
 INVIDIOUS_INSTANCES = [
@@ -159,7 +198,6 @@ def _ytdlp_youtube(url, format_type, quality):
         'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
         'quiet': True,
         'no_warnings': True,
-        'extractor_args': {'youtube': {'player_client': ['android_vr', 'ios']}},
     }
 
     cookie_file = get_cookies_file()
