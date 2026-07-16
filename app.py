@@ -38,59 +38,92 @@ def process():
 
 
 def download_youtube(url, format_type, quality):
+    try:
+        return _ytdlp_youtube(url, format_type, quality)
+    except Exception as e1:
+        try:
+            return _pytubefix_youtube(url, format_type, quality)
+        except Exception as e2:
+            raise Exception(f"yt-dlp: {e1} | pytubefix: {e2}")
+
+
+def _ytdlp_youtube(url, format_type, quality):
+    import yt_dlp
+
+    ydl_opts = {
+        'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
+        'merge_output_format': 'mp4',
+        'quiet': True,
+        'no_warnings': True,
+        'extractor_args': {'youtube': {'player_client': ['web_embedded']}},
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        },
+    }
+
+    if format_type == 'mp3':
+        ydl_opts['format'] = 'bestaudio/best'
+        ydl_opts['postprocessors'] = [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }]
+    else:
+        target_h = int(quality) if quality else 720
+        ydl_opts['format'] = f'bestvideo[height<={target_h}][ext=mp4]+bestaudio[ext=m4a]/best[height<={target_h}][ext=mp4]/best'
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+        filename = ydl.prepare_filename(info)
+        if format_type == 'mp3':
+            filename = filename.rsplit('.', 1)[0] + '.mp3'
+
+    return filename
+
+
+def _pytubefix_youtube(url, format_type, quality):
     from pytubefix import YouTube
 
-    def dummy_progress(stream, chunk, bytes_remaining):
-        pass
-
-    yt = YouTube(url, on_progress_callback=dummy_progress,
-                 use_oauth=False, allow_oauth_cache=False,
-                 use_po_token=True)
+    yt = YouTube(url, use_oauth=False, allow_oauth_cache=False, use_po_token=True)
 
     if format_type == 'mp3':
         stream = yt.streams.filter(only_audio=True).order_by('bitrate').desc().first()
     else:
         target_res = int(quality) if quality else 1080
-        stream = yt.streams.filter(
-            type='video', progressive=False, file_extension='mp4'
-        ).order_by('resolution').desc()
-
+        streams = yt.streams.filter(type='video', progressive=False, file_extension='mp4').order_by('resolution').desc()
         best = None
-        for s in stream:
-            h = int(s.resolution.replace('p', ''))
+        for s in streams:
+            h = int(s.resolution.replace('p', '')) if s.resolution else 0
             if h <= target_res:
                 best = s
                 break
         if not best:
-            best = stream.last()
+            streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc()
+            best = streams.first()
         stream = best
 
     if not stream:
-        raise Exception("لم يتم العثور على الجودة المطلوبة")
+        raise Exception("No stream found")
 
-    safe_title = re.sub(r'[<>:"/\\|?*]', '', yt.title)[:100]
+    safe_title = re.sub(r'[<>:\"/\\\\|?*]', '', yt.title)[:100]
     ext = 'mp3' if format_type == 'mp3' else 'mp4'
-    out_path = os.path.join(DOWNLOAD_FOLDER, f"{safe_title}.{ext}")
+    final_path = os.path.join(DOWNLOAD_FOLDER, f"{safe_title}.{ext}")
 
     stream.download(output_path=DOWNLOAD_FOLDER, filename=f"{safe_title}.{ext}")
 
     if format_type == 'mp3':
         import subprocess
-        mp4_path = out_path.replace('.mp3', '.mp4')
-        webm_path = out_path.replace('.mp3', '.webm')
-        src = None
-        if os.path.exists(mp4_path):
-            src = mp4_path
-        elif os.path.exists(webm_path):
-            src = webm_path
-        if src and src != out_path:
-            subprocess.run([
-                'ffmpeg', '-y', '-i', src, '-vn',
-                '-acodec', 'libmp3lame', '-b:a', '192k', out_path
-            ], capture_output=True)
-            os.remove(src)
+        for test_ext in ['.mp4', '.webm', '.3gp']:
+            src_path = final_path.replace('.mp3', test_ext)
+            if os.path.exists(src_path):
+                subprocess.run([
+                    'ffmpeg', '-y', '-i', src_path, '-vn',
+                    '-acodec', 'libmp3lame', '-b:a', '192k', final_path
+                ], capture_output=True)
+                os.remove(src_path)
+                break
 
-    return out_path
+    return final_path
 
 
 def download_other(url, format_type, quality):
