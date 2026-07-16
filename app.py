@@ -165,8 +165,6 @@ def _ytdlp_youtube(url, format_type, quality):
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }]
-    else:
-        ydl_opts['format'] = 'best'
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
