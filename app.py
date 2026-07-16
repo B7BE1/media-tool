@@ -56,15 +56,15 @@ def process():
 
 
 def download_youtube(url, format_type, quality):
-    # Try Invidious first - more reliable on cloud IPs
-    try:
-        return _invidious_youtube(url, format_type, quality)
-    except Exception as e_inv:
-        # Fallback to yt-dlp with cookies
+    # Try yt-dlp with ios client (harder for YouTube to block)
+    last_error = None
+    for client in ['ios', 'android', 'web_embedded']:
         try:
-            return _ytdlp_youtube(url, format_type, quality)
-        except Exception as e_yt:
-            raise Exception(str(e_inv))
+            return _ytdlp_youtube(url, format_type, quality, client)
+        except Exception as e:
+            last_error = e
+            continue
+    raise Exception(str(last_error))
 
 
 INVIDIOUS_INSTANCES = [
@@ -153,7 +153,7 @@ def _invidious_youtube(url, format_type, quality):
         return out_path
 
 
-def _ytdlp_youtube(url, format_type, quality):
+def _ytdlp_youtube(url, format_type, quality, player_client='ios'):
     import yt_dlp
 
     ydl_opts = {
@@ -161,6 +161,7 @@ def _ytdlp_youtube(url, format_type, quality):
         'merge_output_format': 'mp4',
         'quiet': True,
         'no_warnings': True,
+        'extractor_args': {'youtube': {'player_client': [player_client]}},
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         },
@@ -169,8 +170,6 @@ def _ytdlp_youtube(url, format_type, quality):
     cookie_file = get_cookies_file()
     if cookie_file:
         ydl_opts['cookiefile'] = cookie_file
-    else:
-        ydl_opts['extractor_args'] = {'youtube': {'player_client': ['web_embedded']}}
 
     if format_type == 'mp3':
         ydl_opts['format'] = 'bestaudio/best'
