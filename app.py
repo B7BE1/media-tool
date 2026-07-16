@@ -3,14 +3,18 @@ import os
 import re
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024
 
 DOWNLOAD_FOLDER = 'downloads'
+COOKIES_FILE = 'cookies.txt'
+
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    has_cookies = os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 50
+    return render_template('index.html', has_cookies=has_cookies)
 
 @app.route('/process', methods=['POST'])
 def process():
@@ -141,11 +145,15 @@ def _ytdlp_youtube(url, format_type, quality):
         'merge_output_format': 'mp4',
         'quiet': True,
         'no_warnings': True,
-        'extractor_args': {'youtube': {'player_client': ['web_embedded']}},
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         },
     }
+
+    if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 50:
+        ydl_opts['cookiefile'] = COOKIES_FILE
+    else:
+        ydl_opts['extractor_args'] = {'youtube': {'player_client': ['web_embedded']}}
 
     if format_type == 'mp3':
         ydl_opts['format'] = 'bestaudio/best'
@@ -199,6 +207,18 @@ def download_other(url, format_type, quality):
 
     return filename
 
+
+@app.route('/upload-cookies', methods=['POST'])
+def upload_cookies():
+    if 'cookies' not in request.files:
+        return jsonify({"status": "error", "message": "No file uploaded"}), 400
+
+    file = request.files['cookies']
+    if file.filename == '':
+        return jsonify({"status": "error", "message": "No file selected"}), 400
+
+    file.save(COOKIES_FILE)
+    return jsonify({"status": "success", "message": "Cookies uploaded"})
 
 @app.route('/downloads/<filename>')
 def download_file(filename):

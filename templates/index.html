@@ -416,6 +416,48 @@
     h1{ font-size:22px; }
   }
 
+  .cookies-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .cookies-upload-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding: 10px 16px;
+    border-radius: var(--radius-field);
+    background: rgba(78,230,255,0.08);
+    border: 1px dashed rgba(78,230,255,0.35);
+    color: var(--cyan);
+    cursor:pointer;
+    font-size:13px;
+    font-weight:600;
+    transition: all 0.2s ease;
+  }
+  .cookies-upload-btn:hover{
+    background: rgba(78,230,255,0.15);
+    border-color: rgba(78,230,255,0.6);
+  }
+  .cookies-status{
+    font-size:12px;
+    color: var(--text-low);
+  }
+  .cookies-status.loaded{
+    color: #4ef0a5;
+  }
+  .cookies-hint{
+    font-size:11px;
+    color: var(--text-low);
+    margin-top:6px;
+    line-height:1.5;
+  }
+  .cookies-hint a{
+    color: var(--cyan);
+    text-decoration:underline;
+  }
+
   @media (prefers-reduced-motion: reduce){
     *{ animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; }
   }
@@ -473,6 +515,19 @@
     </div>
   </div>
 
+  <div class="field-group" id="cookies-group">
+    <label for="cookies-input">ملف تعريف يوتيوب (Cookies)</label>
+    <div class="cookies-row">
+      <label class="cookies-upload-btn" for="cookies-input">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        رفع cookies.txt
+      </label>
+      <input type="file" id="cookies-input" accept=".txt" style="display:none">
+      <span class="cookies-status" id="cookies-status">غير مرفوع</span>
+    </div>
+    <p class="cookies-hint">حمّل <a href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank">الإضافة</a>، افتح youtube.com، صدر الملف، ثم ارفعه هنا.</p>
+  </div>
+
   <button id="download-btn" type="button">
     <span class="spinner" id="spinner"></span>
     <span class="btn-label" id="btn-label">ابدأ المعالجة</span>
@@ -515,6 +570,8 @@
   const errorBox   = document.getElementById('error-box');
   const qualitySelect = document.getElementById('quality-select');
   const qualityWrap   = document.getElementById('quality-wrap');
+  const cookiesInput  = document.getElementById('cookies-input');
+  const cookiesStatus = document.getElementById('cookies-status');
 
   let isProcessing = false;
 
@@ -626,6 +683,27 @@
   urlInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') btn.click();
   });
+
+  cookiesInput.addEventListener('change', async () => {
+    const file = cookiesInput.files[0];
+    if (!file) return;
+    cookiesStatus.textContent = 'جاري الرفع...';
+    const formData = new FormData();
+    formData.append('cookies', file);
+    try {
+      const resp = await fetch('/upload-cookies', { method: 'POST', body: formData });
+      const data = await resp.json();
+      if (data.status === 'success') {
+        cookiesStatus.textContent = 'مرفوع ✓';
+        cookiesStatus.classList.add('loaded');
+      } else {
+        cookiesStatus.textContent = 'فشل الرفع';
+      }
+    } catch(e) {
+      cookiesStatus.textContent = 'خطأ في الرفع';
+    }
+  });
+
 })();
 </script>
 
