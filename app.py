@@ -56,20 +56,22 @@ def process():
 
 
 def download_youtube(url, format_type, quality):
+    # Try Invidious first - more reliable on cloud IPs
     try:
-        return _ytdlp_youtube(url, format_type, quality)
-    except Exception as e1:
+        return _invidious_youtube(url, format_type, quality)
+    except Exception as e_inv:
+        # Fallback to yt-dlp with cookies
         try:
-            return _invidious_youtube(url, format_type, quality)
-        except Exception:
-            raise e1
+            return _ytdlp_youtube(url, format_type, quality)
+        except Exception as e_yt:
+            raise Exception(str(e_inv))
 
 
 INVIDIOUS_INSTANCES = [
     'https://inv.nadeko.net',
-    'https://invidious.fdn.fr',
-    'https://yt.artemislena.eu',
-    'https://invidious.privacyredirect.com',
+    'https://invidious.nerdvpn.de',
+    'https://invidious.f5.si',
+    'https://inv.zoomerville.com',
 ]
 
 
