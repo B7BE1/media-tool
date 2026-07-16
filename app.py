@@ -42,9 +42,95 @@ def download_youtube(url, format_type, quality):
         return _ytdlp_youtube(url, format_type, quality)
     except Exception as e1:
         try:
-            return _pytubefix_youtube(url, format_type, quality)
+            return _invidious_youtube(url, format_type, quality)
         except Exception as e2:
-            raise Exception(f"yt-dlp: {e1} | pytubefix: {e2}")
+            raise Exception(str(e1))
+
+
+INVIDIOUS_INSTANCES = [
+    'https://inv.nadeko.net',
+    'https://invidious.fdn.fr',
+    'https://yt.artemislena.eu',
+    'https://invidious.privacyredirect.com',
+]
+
+
+def _invidious_youtube(url, format_type, quality):
+    import urllib.request as ur
+    import json as j
+
+    vid_id = None
+    for p in ['v=', 'youtu.be/']:
+        idx = url.find(p)
+        if idx != -1:
+            vid_id = url[idx + len(p):].split('&')[0].split('/')[0].split('?')[0]
+            break
+    if not vid_id:
+        raise Exception('Could not extract video ID')
+
+    api_url = None
+    video_data = None
+    for instance in INVIDIOUS_INSTANCES:
+        try:
+            req = ur.Request(f'{instance}/api/v1/videos/{vid_id}')
+            req.add_header('User-Agent', 'Mozilla/5.0')
+            resp = ur.urlopen(req, timeout=10)
+            video_data = j.loads(resp.read())
+            api_url = instance
+            break
+        except Exception:
+            continue
+
+    if not video_data:
+        raise Exception('All Invidious instances unreachable')
+
+    title = video_data.get('title', 'video')
+    safe_title = re.sub(r'[<>:\"/\\\\|?*]', '', title)[:100]
+
+    if format_type == 'mp3':
+        # Get best audio
+        best = None
+        best_br = 0
+        for a in video_data.get('adaptiveFormats', []):
+            if a.get('type', '').startswith('audio') and a.get('bitrate'):
+                br = int(a['bitrate'].replace('k', '000'))
+                if br > best_br:
+                    best_br = br
+                    best = a
+        if not best:
+            raise Exception('No audio stream available')
+
+        temp_path = os.path.join(DOWNLOAD_FOLDER, f'{safe_title}_temp')
+        ur.urlretrieve(best['url'], temp_path)
+
+        out_path = os.path.join(DOWNLOAD_FOLDER, f'{safe_title}.mp3')
+        import subprocess
+        subprocess.run([
+            'ffmpeg', '-y', '-i', temp_path, '-vn',
+            '-acodec', 'libmp3lame', '-b:a', '192k', out_path
+        ], capture_output=True)
+        os.remove(temp_path)
+        return out_path
+
+    else:
+        target_h = int(quality) if quality else 720
+
+        # Get combined video+audio stream
+        best = None
+        for fmt in video_data.get('formatStreams', []):
+            h = int(fmt.get('resolution', '0p').replace('p', ''))
+            if h <= target_h:
+                best = fmt
+                break
+        if not best:
+            best = video_data.get('formatStreams', [{}])[0] if video_data.get('formatStreams') else None
+
+        if not best:
+            raise Exception('No video stream available')
+
+        out_path = os.path.join(DOWNLOAD_FOLDER, f'{safe_title}.mp4')
+        ur.urlretrieve(best['url'], out_path)
+        return out_path
 
 
 def _ytdlp_youtube(url, format_type, quality):
@@ -79,51 +165,6 @@ def _ytdlp_youtube(url, format_type, quality):
             filename = filename.rsplit('.', 1)[0] + '.mp3'
 
     return filename
-
-
-def _pytubefix_youtube(url, format_type, quality):
-    from pytubefix import YouTube
-
-    yt = YouTube(url, use_oauth=False, allow_oauth_cache=False, use_po_token=True)
-
-    if format_type == 'mp3':
-        stream = yt.streams.filter(only_audio=True).order_by('bitrate').desc().first()
-    else:
-        target_res = int(quality) if quality else 1080
-        streams = yt.streams.filter(type='video', progressive=False, file_extension='mp4').order_by('resolution').desc()
-        best = None
-        for s in streams:
-            h = int(s.resolution.replace('p', '')) if s.resolution else 0
-            if h <= target_res:
-                best = s
-                break
-        if not best:
-            streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc()
-            best = streams.first()
-        stream = best
-
-    if not stream:
-        raise Exception("No stream found")
-
-    safe_title = re.sub(r'[<>:\"/\\\\|?*]', '', yt.title)[:100]
-    ext = 'mp3' if format_type == 'mp3' else 'mp4'
-    final_path = os.path.join(DOWNLOAD_FOLDER, f"{safe_title}.{ext}")
-
-    stream.download(output_path=DOWNLOAD_FOLDER, filename=f"{safe_title}.{ext}")
-
-    if format_type == 'mp3':
-        import subprocess
-        for test_ext in ['.mp4', '.webm', '.3gp']:
-            src_path = final_path.replace('.mp3', test_ext)
-            if os.path.exists(src_path):
-                subprocess.run([
-                    'ffmpeg', '-y', '-i', src_path, '-vn',
-                    '-acodec', 'libmp3lame', '-b:a', '192k', final_path
-                ], capture_output=True)
-                os.remove(src_path)
-                break
-
-    return final_path
 
 
 def download_other(url, format_type, quality):
