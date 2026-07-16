@@ -56,15 +56,7 @@ def process():
 
 
 def download_youtube(url, format_type, quality):
-    # Try yt-dlp with ios client (harder for YouTube to block)
-    last_error = None
-    for client in ['ios', 'android', 'web_embedded']:
-        try:
-            return _ytdlp_youtube(url, format_type, quality, client)
-        except Exception as e:
-            last_error = e
-            continue
-    raise Exception(str(last_error))
+    return _ytdlp_youtube(url, format_type, quality)
 
 
 INVIDIOUS_INSTANCES = [
@@ -153,14 +145,13 @@ def _invidious_youtube(url, format_type, quality):
         return out_path
 
 
-def _ytdlp_youtube(url, format_type, quality, player_client='ios'):
+def _ytdlp_youtube(url, format_type, quality):
     import yt_dlp
 
     ydl_opts = {
         'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
         'quiet': True,
         'no_warnings': True,
-        'extractor_args': {'youtube': {'player_client': [player_client]}},
     }
 
     cookie_file = get_cookies_file()
@@ -168,14 +159,14 @@ def _ytdlp_youtube(url, format_type, quality, player_client='ios'):
         ydl_opts['cookiefile'] = cookie_file
 
     if format_type == 'mp3':
-        ydl_opts['format'] = 'ba/b'
+        ydl_opts['format'] = 'bestaudio/best'
         ydl_opts['postprocessors'] = [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }]
     else:
-        ydl_opts['format'] = 'bv*+ba/b'
+        ydl_opts['format'] = 'bestvideo+bestaudio/best'
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
