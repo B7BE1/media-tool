@@ -39,9 +39,11 @@ def process():
 
 def download_youtube(url, format_type, quality):
     from pytubefix import YouTube
-    from pytubefix.cli import on_progress
 
-    yt = YouTube(url, on_progress_callback=on_progress,
+    def dummy_progress(stream, chunk, bytes_remaining):
+        pass
+
+    yt = YouTube(url, on_progress_callback=dummy_progress,
                  use_oauth=False, allow_oauth_cache=False,
                  use_po_token=True)
 
