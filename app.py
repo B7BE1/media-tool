@@ -180,7 +180,7 @@ def _ytdlp_youtube(url, format_type, quality, player_client='ios'):
         }]
     else:
         target_h = int(quality) if quality else 720
-        ydl_opts['format'] = f'bestvideo[height<={target_h}][ext=mp4]+bestaudio[ext=m4a]/best[height<={target_h}][ext=mp4]/best'
+        ydl_opts['format'] = f'bestvideo[height<={target_h}]+bestaudio/best[height<={target_h}]/best'
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
