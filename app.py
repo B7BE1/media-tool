@@ -21,11 +21,17 @@ def process():
 
     try:
         # إعدادات yt-dlp
-        # إعدادات إجبارية لتحميل MP4 فقط
         ydl_opts = {
             'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-            'merge_output_format': 'mp4', # السطر المهم لدمج الملفات بصيغة mp4
+            'merge_output_format': 'mp4',
+            'quiet': True,
+            'no_warnings': True,
+            'extractor_args': {'youtube': {'player_client': ['android', 'ios', 'web']}},
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                'Accept-Language': 'en-US,en;q=0.9',
+            },
         }
         if format_type == 'mp3':
             ydl_opts['format'] = 'bestaudio/best'
