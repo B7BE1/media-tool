@@ -6,14 +6,22 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024
 
 DOWNLOAD_FOLDER = 'downloads'
-COOKIES_FILE = '/etc/secrets/cookies.txt' if os.path.exists('/etc/secrets/cookies.txt') else 'cookies.txt'
+SECRET_COOKIES = '/etc/secrets/cookies.txt'
+LOCAL_COOKIES = 'cookies.txt'
+
+def get_cookies_file():
+    if os.path.exists(SECRET_COOKIES) and os.path.getsize(SECRET_COOKIES) > 50:
+        return SECRET_COOKIES
+    if os.path.exists(LOCAL_COOKIES) and os.path.getsize(LOCAL_COOKIES) > 50:
+        return LOCAL_COOKIES
+    return None
 
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
 
 @app.route('/')
 def index():
-    has_cookies = os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 50
+    has_cookies = get_cookies_file() is not None
     return render_template('index.html', has_cookies=has_cookies)
 
 @app.route('/process', methods=['POST'])
@@ -150,8 +158,9 @@ def _ytdlp_youtube(url, format_type, quality):
         },
     }
 
-    if os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 50:
-        ydl_opts['cookiefile'] = COOKIES_FILE
+    cookie_file = get_cookies_file()
+    if cookie_file:
+        ydl_opts['cookiefile'] = cookie_file
     else:
         ydl_opts['extractor_args'] = {'youtube': {'player_client': ['web_embedded']}}
 
@@ -217,17 +226,16 @@ def upload_cookies():
     if file.filename == '':
         return jsonify({"status": "error", "message": "No file selected"}), 400
 
-    file.save(COOKIES_FILE)
+    file.save(LOCAL_COOKIES)
     return jsonify({"status": "success", "message": "Cookies uploaded"})
 
 @app.route('/status')
 def status():
-    cookie_exists = os.path.exists(COOKIES_FILE)
-    cookie_size = os.path.getsize(COOKIES_FILE) if cookie_exists else 0
+    cookie_file = get_cookies_file()
     return jsonify({
-        "cookies": cookie_exists,
-        "cookies_size": cookie_size,
-        "cookies_path": COOKIES_FILE,
+        "cookies": cookie_file is not None,
+        "cookies_size": os.path.getsize(cookie_file) if cookie_file else 0,
+        "cookies_path": cookie_file or 'none',
     })
 
 @app.route('/downloads/<filename>')
