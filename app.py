@@ -10,10 +10,14 @@ SECRET_COOKIES = '/etc/secrets/cookies.txt'
 LOCAL_COOKIES = 'cookies.txt'
 
 def get_cookies_file():
+    # Copy from read-only secret mount to writable location
+    writable = LOCAL_COOKIES
     if os.path.exists(SECRET_COOKIES) and os.path.getsize(SECRET_COOKIES) > 50:
-        return SECRET_COOKIES
-    if os.path.exists(LOCAL_COOKIES) and os.path.getsize(LOCAL_COOKIES) > 50:
-        return LOCAL_COOKIES
+        if not os.path.exists(writable) or os.path.getsize(writable) < 50:
+            import shutil
+            shutil.copy2(SECRET_COOKIES, writable)
+    if os.path.exists(writable) and os.path.getsize(writable) > 50:
+        return writable
     return None
 
 if not os.path.exists(DOWNLOAD_FOLDER):
