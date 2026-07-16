@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template, send_from_directory
-import yt_dlp
 import os
+import re
 
 app = Flask(__name__)
 
@@ -16,56 +16,112 @@ def index():
 def process():
     data = request.json
     url = data.get('url')
-    format_type = data.get('format') # mp4 أو mp3
+    format_type = data.get('format')
     quality = data.get('quality')
 
     try:
-        # إعدادات yt-dlp
-        ydl_opts = {
-            'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-            'merge_output_format': 'mp4',
-            'quiet': True,
-            'no_warnings': True,
-            'extractor_args': {'youtube': {'player_client': ['android', 'ios', 'web']}},
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                'Accept-Language': 'en-US,en;q=0.9',
-            },
-        }
-        if format_type == 'mp3':
-            ydl_opts['format'] = 'bestaudio/best'
-            ydl_opts['postprocessors'] = [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }]
+        is_youtube = re.search(r'(youtube\.com|youtu\.be)', url)
+
+        if is_youtube:
+            filename = download_youtube(url, format_type, quality)
         else:
-            # المنطق الجديد: 
-            # 1. إذا كان فيه 4K (2160p) يحمل webm (أعلى جودة).
-            # 2. إذا ما كان فيه، يحمل أفضل جودة متاحة بصيغة mp4.
-            ydl_opts['format'] = (
-                f'bestvideo[height=2160][ext=webm]+bestaudio/best[height=2160]/best[ext=mp4]/best'
-            )
-            ydl_opts['merge_output_format'] = 'mp4'
+            filename = download_other(url, format_type, quality)
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-            
-            # تحديث الامتداد في حال تحويل الصوت
-            if format_type == 'mp3':
-                filename = filename.rsplit('.', 1)[0] + '.mp3'
-
-            # إرجاع رابط التحميل للواجهة
-            return jsonify({
-                "status": "success",
-                "filename": os.path.basename(filename),
-                "download_url": f"/downloads/{os.path.basename(filename)}"
-            })
+        return jsonify({
+            "status": "success",
+            "filename": os.path.basename(filename),
+            "download_url": f"/downloads/{os.path.basename(filename)}"
+        })
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
+
+
+def download_youtube(url, format_type, quality):
+    from pytubefix import YouTube
+    from pytubefix.cli import on_progress
+
+    yt = YouTube(url, on_progress_callback=on_progress,
+                 use_oauth=False, allow_oauth_cache=False)
+
+    if format_type == 'mp3':
+        stream = yt.streams.filter(only_audio=True).order_by('bitrate').desc().first()
+    else:
+        target_res = int(quality) if quality else 1080
+        stream = yt.streams.filter(
+            type='video', progressive=False, file_extension='mp4'
+        ).order_by('resolution').desc()
+
+        best = None
+        for s in stream:
+            h = int(s.resolution.replace('p', ''))
+            if h <= target_res:
+                best = s
+                break
+        if not best:
+            best = stream.last()
+        stream = best
+
+    if not stream:
+        raise Exception("لم يتم العثور على الجودة المطلوبة")
+
+    safe_title = re.sub(r'[<>:"/\\|?*]', '', yt.title)[:100]
+    ext = 'mp3' if format_type == 'mp3' else 'mp4'
+    out_path = os.path.join(DOWNLOAD_FOLDER, f"{safe_title}.{ext}")
+
+    stream.download(output_path=DOWNLOAD_FOLDER, filename=f"{safe_title}.{ext}")
+
+    if format_type == 'mp3':
+        import subprocess
+        mp4_path = out_path.replace('.mp3', '.mp4')
+        webm_path = out_path.replace('.mp3', '.webm')
+        src = None
+        if os.path.exists(mp4_path):
+            src = mp4_path
+        elif os.path.exists(webm_path):
+            src = webm_path
+        if src and src != out_path:
+            subprocess.run([
+                'ffmpeg', '-y', '-i', src, '-vn',
+                '-acodec', 'libmp3lame', '-b:a', '192k', out_path
+            ], capture_output=True)
+            os.remove(src)
+
+    return out_path
+
+
+def download_other(url, format_type, quality):
+    import yt_dlp
+
+    ydl_opts = {
+        'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
+        'merge_output_format': 'mp4',
+        'quiet': True,
+        'no_warnings': True,
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+        },
+    }
+
+    if format_type == 'mp3':
+        ydl_opts['format'] = 'bestaudio/best'
+        ydl_opts['postprocessors'] = [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }]
+    else:
+        ydl_opts['format'] = 'bestvideo[height=2160][ext=webm]+bestaudio/best[height=2160]/best[ext=mp4]/best'
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+        filename = ydl.prepare_filename(info)
+        if format_type == 'mp3':
+            filename = filename.rsplit('.', 1)[0] + '.mp3'
+
+    return filename
+
 
 @app.route('/downloads/<filename>')
 def download_file(filename):
