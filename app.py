@@ -158,13 +158,9 @@ def _ytdlp_youtube(url, format_type, quality, player_client='ios'):
 
     ydl_opts = {
         'outtmpl': f'{DOWNLOAD_FOLDER}/%(title)s.%(ext)s',
-        'merge_output_format': 'mp4',
         'quiet': True,
         'no_warnings': True,
         'extractor_args': {'youtube': {'player_client': [player_client]}},
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        },
     }
 
     cookie_file = get_cookies_file()
@@ -172,14 +168,14 @@ def _ytdlp_youtube(url, format_type, quality, player_client='ios'):
         ydl_opts['cookiefile'] = cookie_file
 
     if format_type == 'mp3':
-        ydl_opts['format'] = 'bestaudio/best'
+        ydl_opts['format'] = 'ba/b'
         ydl_opts['postprocessors'] = [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }]
     else:
-        ydl_opts['format'] = 'best'
+        ydl_opts['format'] = 'bv*+ba/b'
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
